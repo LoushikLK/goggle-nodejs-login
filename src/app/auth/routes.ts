@@ -1,4 +1,7 @@
 import { NextFunction, Request, Response, Router } from "express";
+import passport from "passport";
+import { Strategy as FacebookStrategy } from "passport-facebook";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import path from "path";
 import {
   changePassword,
@@ -22,6 +25,33 @@ import {
 
 const router = Router();
 
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: String(process.env.GOOGLE_CLIENT_ID),
+      clientSecret: String(process.env.GOOGLE_CLIENT_SECRET),
+      callbackURL: "http://localhost:80/api/v1/auth/google/callback",
+    },
+    function (accessToken, refreshToken, profile, cb) {
+      return cb(null, profile);
+    }
+  )
+);
+
+passport.use(
+  new FacebookStrategy(
+    {
+      clientID: String(process.env.FACEBOOK_APP_ID),
+      clientSecret: String(process.env.FACEBOOK_APP_SECRET),
+      callbackURL: `http://localhost:80/api/v1/auth/facebook/callback`,
+      profileFields: ["id", "displayName", "profileUrl", "email", "gender"],
+    },
+    function (accessToken, refreshToken, profile, done) {
+      done(null, profile);
+    }
+  )
+);
+
 router.get(
   "/login",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -30,6 +60,30 @@ router.get(
 );
 router.post("/email-register", validateEmailRegistration(), register);
 router.post("/login", validateEmailLogin(), userLogin);
+router.get(
+  "/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { failureRedirect: "/api/v1/login" }),
+  function (req, res) {
+    console.log(req?.user);
+    // Successful authentication, redirect home.
+    res.redirect("/");
+  }
+);
+
+router.get("/facebook", passport.authenticate("facebook"));
+
+router.get(
+  "/facebook/callback",
+  passport.authenticate("facebook", {
+    successRedirect: "/",
+    failureRedirect: "/fail",
+  })
+);
+
 router.post("/change-password", validateChangePassword(), changePassword);
 router.post(
   "/resend-verification-code",
