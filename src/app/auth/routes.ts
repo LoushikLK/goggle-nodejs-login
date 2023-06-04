@@ -3,6 +3,7 @@ import passport from "passport";
 import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import path from "path";
+import { isAuthenticated } from "../../middlewares/auth.middleware";
 import {
   changePassword,
   forgotPassword,
@@ -10,9 +11,11 @@ import {
   logout,
   register,
   resendVerificationCode,
+  socialLLogin,
   userLogin,
   verifyUser,
 } from "./controllers";
+import { facebookLogin, googleLogin } from "./functions";
 import {
   validateChangePassword,
   validateEmailLogin,
@@ -32,8 +35,12 @@ passport.use(
       clientSecret: String(process.env.GOOGLE_CLIENT_SECRET),
       callbackURL: "http://localhost:80/api/v1/auth/google/callback",
     },
-    function (accessToken, refreshToken, profile, cb) {
-      return cb(null, profile);
+    async function (accessToken, refreshToken, profile, done) {
+      //find data from database
+      const user = await googleLogin(profile, accessToken);
+
+      if (user instanceof Error) return done(user);
+      return done(null, user);
     }
   )
 );
@@ -46,8 +53,11 @@ passport.use(
       callbackURL: `http://localhost:80/api/v1/auth/facebook/callback`,
       profileFields: ["id", "displayName", "profileUrl", "email", "gender"],
     },
-    function (accessToken, refreshToken, profile, done) {
-      done(null, profile);
+    async function (accessToken, refreshToken, profile, done) {
+      //find data from database
+      const user = await facebookLogin(profile, accessToken);
+      if (user instanceof Error) return done(user);
+      return done(null, user);
     }
   )
 );
@@ -67,11 +77,7 @@ router.get(
 router.get(
   "/google/callback",
   passport.authenticate("google", { failureRedirect: "/api/v1/login" }),
-  function (req, res) {
-    console.log(req?.user);
-    // Successful authentication, redirect home.
-    res.redirect("/");
-  }
+  socialLLogin
 );
 
 router.get("/facebook", passport.authenticate("facebook"));
@@ -79,9 +85,9 @@ router.get("/facebook", passport.authenticate("facebook"));
 router.get(
   "/facebook/callback",
   passport.authenticate("facebook", {
-    successRedirect: "/",
     failureRedirect: "/fail",
-  })
+  }),
+  socialLLogin
 );
 
 router.post("/change-password", validateChangePassword(), changePassword);
@@ -97,6 +103,6 @@ router.post(
   validateForgotPasswordOTPVerify(),
   forgotPasswordVerify
 );
-router.post("/logout", logout);
+router.post("/logout", isAuthenticated, logout);
 
 export default router;

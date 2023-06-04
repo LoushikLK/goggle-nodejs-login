@@ -38,6 +38,8 @@ export interface IUser extends Document {
   emailVerified: boolean;
   googleId: string;
   facebookId: string;
+  googleAccessToken: string;
+  facebookAccessToken: string;
   encryptPassword(rawPassword: string): string;
   authenticate(rawPassword: string): boolean;
 }

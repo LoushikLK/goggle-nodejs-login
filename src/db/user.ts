@@ -13,6 +13,7 @@ const userSchema = new Schema<IUser, Model<IUser>>({
   phoneNumber: {
     type: String,
     unique: true,
+    sparse: true,
   },
   countryCode: String,
   country: String,
@@ -37,7 +38,10 @@ const userSchema = new Schema<IUser, Model<IUser>>({
     android: String,
     ios: String,
   },
-  role: String,
+  role: {
+    type: String,
+    default: "ADMIN",
+  },
   isLoggedIn: {
     type: Boolean,
     default: false,
@@ -62,6 +66,8 @@ const userSchema = new Schema<IUser, Model<IUser>>({
   },
   googleId: String,
   facebookId: String,
+  googleAccessToken: String,
+  facebookAccessToken: String,
 });
 
 userSchema

@@ -1,4 +1,6 @@
 import { BadRequest, NotAcceptable, NotFound, Unauthorized } from "http-errors";
+import { Profile as FBProfile } from "passport-facebook";
+import { Profile } from "passport-google-oauth20";
 import { UserModel } from "../../db/user";
 import { createOTP } from "../../helpers/core.helper";
 import { generateToken, verifyToken } from "../../helpers/jwt.herper";
@@ -147,4 +149,63 @@ export const verifyOTPAndChangePassword = async ({
   //save the code in database
   await userData.save();
   return true;
+};
+
+export const googleLogin = async (profile: Profile, accessToken?: string) => {
+  try {
+    //find or create the user
+
+    const user = await UserModel.findOneAndUpdate(
+      {
+        googleId: profile.id,
+        email: profile?.emails?.[0].value,
+        emailVerified: profile?.emails?.[0]?.verified === "true",
+      },
+      {
+        displayName: profile.displayName,
+        googleAccessToken: accessToken,
+      },
+      {
+        upsert: true,
+        runValidators: true,
+        new: true,
+        lean: true,
+      }
+    ).select("displayName email photoUrl role googleId facebookId");
+
+    if (!user) return new Error("User verification failed.");
+    return user;
+  } catch (error) {
+    return error as Error;
+  }
+};
+export const facebookLogin = async (
+  profile: FBProfile,
+  accessToken?: string
+) => {
+  try {
+    //find or create the user
+
+    const user = await UserModel.findOneAndUpdate(
+      {
+        facebookId: profile.id,
+        email: profile?.emails?.[0]?.value,
+      },
+      {
+        displayName: profile.displayName,
+        facebookAccessToken: accessToken,
+      },
+      {
+        upsert: true,
+        runValidators: true,
+        new: true,
+        lean: true,
+      }
+    ).select("displayName email photoUrl role googleId facebookId");
+
+    if (!user) return new Error("User verification failed.");
+    return user;
+  } catch (error) {
+    return error as Error;
+  }
 };

@@ -13,7 +13,7 @@ export const generateToken = async (
     expiresIn: options?.expiresIn || "1d",
   });
 };
-export const verifyToken = async (token: string) => {
+export const verifyToken = async (token: string): Promise<any> => {
   const jwtSecret = process.env.JWT_SECRET;
 
   if (!jwtSecret) throw new InternalServerError("JWT secret is not found.");

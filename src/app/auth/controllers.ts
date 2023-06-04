@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { Unauthorized } from "http-errors";
+import { InternalServerError, Unauthorized } from "http-errors";
 import { UserModel } from "../../db/user";
 import { generateToken } from "../../helpers/jwt.herper";
 import { sendEmail } from "../../services/mail.service";
@@ -149,7 +149,7 @@ async function userLogin(req: Request, res: Response, next: NextFunction) {
     //create a token
     const token = await generateToken({
       email: user?.email,
-      id: user?._id,
+      _id: user?._id,
       displayName: user?.displayName,
       role: user?.role,
     });
@@ -250,14 +250,36 @@ async function forgotPasswordVerify(
 async function logout(req: Request, res: Response, next: NextFunction) {
   try {
     //update the user
-    await UserModel.findByIdAndUpdate(req?.body?._id, {
+    await UserModel.findByIdAndUpdate(req?.currentUser._id, {
       isLoggedIn: false,
       isOnline: false,
     });
 
+    //logout the user if logged in through any social media
+    req?.logOut({ keepSessionInfo: false }, (err) => {
+      if (err) throw new InternalServerError(err);
+    });
     //send response to client
     res.json({
       msg: "You have been logged out successfully.",
+      success: true,
+    });
+  } catch (error) {
+    //handle error
+    next(error);
+  }
+}
+async function socialLLogin(req: Request, res: Response, next: NextFunction) {
+  try {
+    //update the user
+    await UserModel.findByIdAndUpdate(req?.body?._id, {
+      isLoggedIn: true,
+      isOnline: true,
+    });
+
+    //send response to client
+    res.json({
+      msg: "Logged in successfully.",
       success: true,
     });
   } catch (error) {
@@ -273,6 +295,7 @@ export {
   logout,
   register,
   resendVerificationCode,
+  socialLLogin,
   userLogin,
   verifyUser,
 };
